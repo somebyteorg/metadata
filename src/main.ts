@@ -2,11 +2,18 @@
 
 import 'dotenv/config'
 import Hapi from '@hapi/hapi'
+import HapiInert from '@hapi/inert'
 import joi from 'joi'
 import { spawn } from 'node:child_process'
 import JSONStream from 'JSONStream'
 import bl from 'bl'
+import Path from 'path'
+import fs from 'fs'
 import { FFProbeStream } from 'ffprobe'
+import { parseFromTokenizer, selectCover } from 'music-metadata'
+import { makeTokenizer } from '@tokenizer/http'
+
+const TMP_PATH = Path.join(process.cwd(), 'tmp')
 
 const init = async () => {
   const server = Hapi.server({
@@ -16,7 +23,14 @@ const init = async () => {
       log: ['*'],
       request: ['*'],
     },
+    routes: {
+      files: {
+        relativeTo: TMP_PATH,
+      },
+    },
   })
+
+  await server.register(HapiInert)
 
   server.route({
     method: 'get',
@@ -95,6 +109,65 @@ const init = async () => {
         request.log('error', error)
         return h.response(error).code(500)
       }
+    },
+  })
+
+  server.route({
+    method: 'post',
+    path: '/music/parse',
+    options: {
+      validate: {
+        payload: joi.object({
+          url: joi.string().required(),
+        }),
+      },
+    },
+    handler: async (request, h) => {
+      try {
+        let token = await makeTokenizer((request.payload as any).url),
+          metadata = await parseFromTokenizer(token),
+          common = metadata.common
+
+        let cover = selectCover(common.picture),
+          cover_path = null
+        if (cover) {
+          // 这么切应该没问题
+          cover_path = `${crypto.randomUUID().replace(/-/g, '')}.${cover.format.split('/')[1]}`
+
+          let file_path = `${TMP_PATH}/${cover_path}`
+
+          fs.writeFileSync(file_path, cover.data)
+
+          setTimeout(() => {
+            try {
+              fs.unlinkSync(file_path)
+            } catch (e) {}
+          }, 120 * 1000)
+        }
+
+        delete common.picture
+
+        return h.response({
+          cover_path: cover ? `/music/cover/${cover_path}` : null,
+          format: metadata.format,
+          ...common,
+        })
+      } catch (e) {
+        let error = `music error ${e}`
+        request.log('error', error)
+        return h.response(error).code(500)
+      }
+    },
+  })
+
+  server.route({
+    method: 'get',
+    path: '/music/cover/{filename}',
+    options: {},
+    handler: {
+      file: (request) => {
+        return request.params.filename
+      },
     },
   })
 
