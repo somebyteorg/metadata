@@ -1,6 +1,6 @@
 # metadata
 
-适用于 [`emya`](https://github.com/emosp/emya) 的媒体信息抓取
+媒体信息抓取 `ffprobe` and `id3`
 
 # 安装
 
@@ -20,7 +20,7 @@ pm2 start
 
 ## docker
 
-`docker build . -t emospg/metadata`
+`docker build . -t somebyteorg/metadata`
 
 ```bash
 docker compose up -d

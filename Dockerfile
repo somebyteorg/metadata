@@ -1,14 +1,14 @@
-FROM node:20-alpine3.22 AS builder
+FROM node:24-alpine3.23 AS builder
 WORKDIR /app
 COPY /package.json ./
 COPY /tsconfig.json ./
 COPY /src ./
 RUN npm install && npm run build
 
-FROM node:20-alpine3.22
-LABEL org.label-schema.name="emosp/metadata" \
-      org.label-schema.description="适用于 emya 的媒体信息抓取" \
-      org.label-schema.url="https://github.com/emosp/metadata"
+FROM node:24-alpine3.23
+LABEL org.label-schema.name="somebyteorg/metadata" \
+      org.label-schema.description="媒体信息抓取" \
+      org.label-schema.url="https://github.com/somebyteorg/metadata"
 
 ENV APP_NAME=metadata \
     SERVER_HOST=0.0.0.0 \

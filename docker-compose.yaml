@@ -1,6 +1,6 @@
 services:
   metadata:
-    image: emospg/metadata
+    image: somebyteorg/metadata
     restart: always
     ports:
       - "8001:8001"
