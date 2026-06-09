@@ -48,7 +48,7 @@ curl --location '127.0.0.1:8000/music/parse' --header 'Content-Type: application
 
 ```josn
 {
-  "cover_path": "/music/cover/c8567c7f6840464cb0eb25ba288a8f3a.jpeg",
+  "cover_path": "/storage/c8567c7f6840464cb0eb25ba288a8f3a.jpeg",
   "format": {
     "tagTypes": [
       "ID3v2.3"
@@ -102,9 +102,9 @@ curl --location '127.0.0.1:8000/music/parse' --header 'Content-Type: application
 
 ### `cover`
 
-- 生成 `120s` 后系统会自动删除
+- 如果 `MUSIC_COVER_PATH` 为空则生成 `120s` 后系统会自动删除
 
-`http://127.0.0.1:8000/music/parse/[cover_path]`
+`http://127.0.0.1:8000/storage/[cover_path]`
 
 ## `hash`
 

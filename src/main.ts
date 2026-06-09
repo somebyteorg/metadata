@@ -13,8 +13,10 @@ import crypto from 'crypto'
 import { FFProbeStream } from 'ffprobe'
 import { parseFromTokenizer, selectCover } from 'music-metadata'
 import { makeTokenizer } from '@tokenizer/http'
+import dayjs from 'dayjs'
 
 const TMP_PATH = Path.join(process.cwd(), 'tmp')
+const STORAGE_PATH = process.env.STORAGE_PATH || TMP_PATH
 
 const CRYPTO_SUPPORTED = crypto.getHashes()
 
@@ -28,7 +30,7 @@ const init = async () => {
     },
     routes: {
       files: {
-        relativeTo: TMP_PATH,
+        relativeTo: STORAGE_PATH,
       },
     },
   })
@@ -135,23 +137,32 @@ const init = async () => {
           cover_path = null
         if (cover) {
           // 这么切应该没问题
-          cover_path = `${crypto.randomUUID().replace(/-/g, '')}.${cover.format.split('/')[1]}`
+          let cover_name = `${crypto.randomUUID().replace(/-/g, '')}.${cover.format.split('/')[1]}`,
+            cover_path_date = dayjs().format('YYYY/MM/DD'),
+            cover_path_base = `${STORAGE_PATH}/${cover_path_date}`
 
-          let file_path = `${TMP_PATH}/${cover_path}`
+          fs.mkdirSync(cover_path_base, {
+            recursive: true,
+          })
+
+          let file_path = `${cover_path_base}/${cover_name}`
+          cover_path = `${cover_path_date}/${cover_name}`
 
           fs.writeFileSync(file_path, cover.data)
 
-          setTimeout(() => {
-            try {
-              fs.unlinkSync(file_path)
-            } catch (e) {}
-          }, 120 * 1000)
+          if (STORAGE_PATH == TMP_PATH) {
+            setTimeout(() => {
+              try {
+                fs.unlinkSync(file_path)
+              } catch (e) {}
+            }, 120 * 1000)
+          }
         }
 
         delete common.picture
 
         return h.response({
-          cover_path: cover ? `/music/cover/${cover_path}` : null,
+          cover_path: cover ? `/storage/${cover_path}` : null,
           format: metadata.format,
           ...common,
         })
@@ -165,11 +176,12 @@ const init = async () => {
 
   server.route({
     method: 'get',
-    path: '/music/cover/{filename}',
+    path: '/storage/{path*}',
     options: {},
     handler: {
       file: (request) => {
-        return request.params.filename
+        console.log(request.params.path)
+        return request.params.path
       },
     },
   })
