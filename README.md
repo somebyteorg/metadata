@@ -106,3 +106,11 @@ curl --location '127.0.0.1:8000/music/parse' --header 'Content-Type: application
 
 `http://127.0.0.1:8000/music/parse/[cover_path]`
 
+## `hash`
+
+```bash
+curl --location '127.0.0.1:8000/hash' --header 'Content-Type: application/json' --data '{
+    "algorithm": "[hash_algorithm]"
+    "path": "[file_path]"
+}'
+```

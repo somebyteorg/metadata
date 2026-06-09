@@ -9,11 +9,14 @@ import JSONStream from 'JSONStream'
 import bl from 'bl'
 import Path from 'path'
 import fs from 'fs'
+import crypto from 'crypto'
 import { FFProbeStream } from 'ffprobe'
 import { parseFromTokenizer, selectCover } from 'music-metadata'
 import { makeTokenizer } from '@tokenizer/http'
 
 const TMP_PATH = Path.join(process.cwd(), 'tmp')
+
+const CRYPTO_SUPPORTED = crypto.getHashes()
 
 const init = async () => {
   const server = Hapi.server({
@@ -168,6 +171,41 @@ const init = async () => {
       file: (request) => {
         return request.params.filename
       },
+    },
+  })
+
+  server.route({
+    method: 'post',
+    path: '/hash',
+    options: {
+      validate: {
+        payload: joi.object({
+          algorithm: joi
+            .string()
+            .insensitive()
+            .valid(...CRYPTO_SUPPORTED)
+            .required(),
+          path: joi.string().required(),
+        }),
+      },
+    },
+    handler: async (request, h) => {
+      let payload = request.payload as any
+      return new Promise((resolve) => {
+        let hash = crypto.createHash(payload.algorithm),
+          stream = fs.createReadStream(payload.path)
+        stream.on('data', (chunk) => hash.update(chunk))
+        stream.on('end', () =>
+          resolve(
+            h
+              .response({
+                hash: hash.digest('hex'),
+              })
+              .code(200),
+          ),
+        )
+        stream.on('error', (err) => resolve(h.response(err.toString()).code(500)))
+      })
     },
   })
 
