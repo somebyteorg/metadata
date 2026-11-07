@@ -63,6 +63,15 @@ const init = async () => {
         // https://github.com/eugeneware/ffprobe/blob/master/index.js
         let info: {
           streams: FFProbeStream[]
+          chapters: {
+            id: number
+            time_base: string
+            start: number
+            start_time: string
+            end: number
+            end_time: string
+            tags?: Record<string, string>
+          }[]
           format: {
             filename: string
             duration: string
@@ -80,6 +89,7 @@ const init = async () => {
             // prettier-ignore
             '-show_format',
             '-show_streams',
+            '-show_chapters',
             '-print_format',
             'json',
             (request.payload as any).url,
