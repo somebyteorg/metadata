@@ -11,7 +11,12 @@ import Path from 'path'
 import fs from 'fs'
 import crypto from 'crypto'
 import { FFProbeStream } from 'ffprobe'
-import { parseFromTokenizer, selectCover } from 'music-metadata'
+import {
+  parseFile,
+  parseFromTokenizer,
+  selectCover,
+  type IAudioMetadata,
+} from 'music-metadata'
 import { makeTokenizer } from '@tokenizer/http'
 import dayjs from 'dayjs'
 
@@ -21,6 +26,18 @@ const STORAGE_PATH = process.env.STORAGE_PATH || TMP_PATH
 const CRYPTO_SUPPORTED = crypto.getHashes()
 
 const init = async () => {
+  if (STORAGE_PATH === TMP_PATH) {
+    await fs.promises.mkdir(TMP_PATH, { recursive: true })
+    for (const file of await fs.promises.readdir(TMP_PATH, {
+      recursive: true,
+      withFileTypes: true,
+    })) {
+      if (file.isFile()) {
+        await fs.promises.rm(Path.join(file.parentPath, file.name), { force: true })
+      }
+    }
+  }
+
   const server = Hapi.server({
     host: process.env.SERVER_HOST,
     port: process.env.SERVER_PORT,
@@ -139,9 +156,21 @@ const init = async () => {
     },
     handler: async (request, h) => {
       try {
-        let token = await makeTokenizer((request.payload as any).url),
-          metadata = await parseFromTokenizer(token),
-          common = metadata.common
+        const { url } = request.payload as { url: string }
+        let metadata: IAudioMetadata
+
+        if (Path.isAbsolute(url)) {
+          metadata = await parseFile(url)
+        } else {
+          const token = await makeTokenizer(url)
+          try {
+            metadata = await parseFromTokenizer(token)
+          } finally {
+            await token.close()
+          }
+        }
+
+        let common = metadata.common
 
         let cover = selectCover(common.picture),
           cover_path = null
@@ -151,21 +180,19 @@ const init = async () => {
             cover_path_date = dayjs().format('YYYY/MM/DD'),
             cover_path_base = `${STORAGE_PATH}/${cover_path_date}`
 
-          fs.mkdirSync(cover_path_base, {
+          await fs.promises.mkdir(cover_path_base, {
             recursive: true,
           })
 
           let file_path = `${cover_path_base}/${cover_name}`
           cover_path = `${cover_path_date}/${cover_name}`
 
-          fs.writeFileSync(file_path, cover.data)
+          await fs.promises.writeFile(file_path, cover.data)
 
-          if (STORAGE_PATH == TMP_PATH) {
+          if (STORAGE_PATH === TMP_PATH) {
             setTimeout(() => {
-              try {
-                fs.unlinkSync(file_path)
-              } catch (e) {}
-            }, 120 * 1000)
+              fs.promises.rm(file_path, { force: true }).catch(console.error)
+            }, 120 * 1000).unref()
           }
         }
 
