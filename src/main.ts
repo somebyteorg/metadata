@@ -12,12 +12,12 @@ import fs from 'fs'
 import crypto from 'crypto'
 import { FFProbeStream } from 'ffprobe'
 import {
-  parseFile,
   parseFromTokenizer,
   selectCover,
   type IAudioMetadata,
 } from 'music-metadata'
 import { makeTokenizer } from '@tokenizer/http'
+import { fromFile } from 'strtok3'
 import dayjs from 'dayjs'
 
 const TMP_PATH = Path.join(process.cwd(), 'tmp')
@@ -160,7 +160,15 @@ const init = async () => {
         let metadata: IAudioMetadata
 
         if (Path.isAbsolute(url)) {
-          metadata = await parseFile(url)
+          const token = await fromFile(url)
+          try {
+            // Omit format hints so the parser detects the format from file contents.
+            delete token.fileInfo.path
+            delete token.fileInfo.mimeType
+            metadata = await parseFromTokenizer(token, { duration: true })
+          } finally {
+            await token.close()
+          }
         } else {
           const token = await makeTokenizer(url)
           try {
